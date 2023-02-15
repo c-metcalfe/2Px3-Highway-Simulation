@@ -22,10 +22,10 @@ RIGHT = 1
 CRUISE = "Cruise"
 LANE_CHANGE = "Lane Change"
 OFFSET = 5 #The last OFFSET indices of the road are not considered to avoid out of bounds errors
-CAR_PROBABILITY = 0.25
+CAR_PROBABILITY = 0.5
 FAST_PROBABILITY = 0.5
-PRINT_ROAD = True
-HIGHWAY_LENGTH = 110
+PRINT_ROAD = False
+HIGHWAY_LENGTH = 300
 
 #Class for each car
 class Driver:
@@ -239,7 +239,13 @@ class Simulation:
 
 
 def main():
-    sim = Simulation(25)
+    # for i in range(20):
+    #     CAR_PROBABILITY=0.05+0.05*i
+    #     sim = Simulation(750)
+    #     sim.run()
+    #     print(CAR_PROBABILITY,"\t",sim.average_time())
+    
+    sim = Simulation(2000)
     sim.run()
-
+    print(CAR_PROBABILITY,"\t",sim.average_time())
 main()
