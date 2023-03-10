@@ -1,5 +1,7 @@
 import random
-#import matplotlib.pyplot as plt
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
 
 """
 2PX3 Highway Simulation Starting Code 
@@ -315,13 +317,13 @@ class Simulation:
         x_values = []
         for i in range(NUM_BARS):
             x_values.append(min_speed + i*diffs)
-        #plt.bar(x_values, y_values, width = diffs, align = 'edge')
-        #plt.show()
+        plt.bar(x_values, y_values, width = diffs, align = 'edge')
+        plt.show()
 
 #Test function
 def main():
     sim = Simulation(NUM_TIME_STEPS)
     sim.run()
-    #sim.plot_avg_speed()
+    sim.plot_avg_speed()
 
 main()
