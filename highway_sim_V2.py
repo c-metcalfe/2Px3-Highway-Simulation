@@ -1,5 +1,5 @@
 import random
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 """
 2PX3 Highway Simulation Starting Code 
@@ -27,7 +27,8 @@ SLOW = 4
 
 #Highway options
 HIGHWAY_LENGTH = 110
-NUM_LANES = 4
+NUM_DEF_LANES = 3    # number of default lanes
+NUM_SD_LANES = 1     # number of self-driving lanes
 
 #Follow distance for normal cars and for self driving cars
 HUMAN_SAFE_FOLLOW = 4
@@ -43,7 +44,8 @@ LANE_CHANGE_RIGHT = "Right Lane Change"
 LEFT_LANE_CHANGE_PROBABILITY = 0.5 #Probability that a car that wants to perform a lane change will pick to go left
 
 #Car generation options
-CAR_PROBABILITY = 0.25
+DEF_CAR_PROBABILITY = 0.25
+SD_CAR_PROBABILITY = 0.25
 FAST_PROBABILITY = 0.5
 IS_HUMAN_PROBABILITY = 0.5
 
@@ -85,14 +87,16 @@ class Driver:
 #Highway class
 class Highway:
 
-    def __init__(self, length, num_lanes):
-        self.num_lanes = num_lanes
+    def __init__(self, length, num_def_lanes, num_sd_lanes):
+        self.num_def_lanes = num_def_lanes
+        self.num_sd_lanes = num_sd_lanes
         self.road = [] #2d array representing highway (each secondary array within the main array represents a lane)
-        for _ in range(num_lanes):
+        for _ in range(num_def_lanes+num_sd_lanes):
             self.road.append([]) #appends the number of lanes specified
+        
         self.length = length
         for _ in range(length):
-            for i in range(num_lanes):
+            for i in range(num_def_lanes+num_sd_lanes):
                 self.road[i].append(EMPTY)
 
     #Returns the value at the specified position within the specified lane
@@ -117,7 +121,7 @@ class Highway:
     #Returns true if it is safe to switch to right lane (spot adjacent to the car's current position in the right lane is free, and so are the next 2 spaces)
     #Returns false otherwise
     def safe_right_lane_change(self, lane, i):
-        if lane == self.num_lanes - 1:
+        if lane == self.num_def_lanes - 1:
             return False
         safe_lane_change = True
         if self.road[lane + 1][i] != EMPTY:
@@ -149,19 +153,26 @@ class Highway:
     #Prints the current state of the highway- good to see the visual representation and for debugging
     def print(self):
         s = "\n\n"
-        for k in range(self.num_lanes):
+        for k in range(self.num_def_lanes):
             for i in range(self.length):
                 if self.road[k][i] == EMPTY:
                     s += "_"
                 else:
                     s += "C"
             s += "\n"
+        for k in range(self.num_sd_lanes):
+            for i in range(self.length):
+                if self.road[k+self.num_def_lanes-1][i] == EMPTY:
+                    s += "~"
+                else:
+                    s += "S"
+            s += "\n"
         print(s)
 
 #Simulation class
 class Simulation:
     def __init__(self, time_steps):
-        self.road = Highway(HIGHWAY_LENGTH, NUM_LANES)
+        self.road = Highway(HIGHWAY_LENGTH, NUM_DEF_LANES, NUM_SD_LANES)
         self.time_steps = time_steps
         self.current_step = 0
         self.num_cars = 0
@@ -181,7 +192,7 @@ class Simulation:
         #Traverse through the length of the highway, beginning from the end and working backwards
         for i in range(self.road.length - 1, -1, -1):
 
-            for k in range(self.road.num_lanes):
+            for k in range(self.road.num_def_lanes+self.road.num_sd_lanes):
                 if self.road.get(k, i) != EMPTY:
                     self.sim_driver(k, i) #Simulates all drivers starting at the end of the highway and starting with the leftmost lane then moving right
 
@@ -250,25 +261,33 @@ class Simulation:
     def gen_new_drivers(self, num_cars):
         is_human = True
         current_car_id = num_cars
-        for lane in range(self.road.num_lanes):
+        for lane in range(self.road.num_def_lanes):
             r = random.random()
             #Can adjust car probability in order to have a higher chance of generating a car each time
-            if r < CAR_PROBABILITY:
+            if r < DEF_CAR_PROBABILITY:
                 r = random.random()
 
-                #Can adjust is human probability in order to have a higher chance of generating a human driver each time
-                if r < IS_HUMAN_PROBABILITY:
-                    is_human = True
-                else:
-                    is_human = False
-
-                r = random.random()
+                is_human = True  #  assume only human driven cars are in the normal lanes
+                
                 
                 #Can adjust fast probability in order to have a higher chance of generating a fast or slow car each time
                 if r < FAST_PROBABILITY:
                     self.road.set(lane, 0, Driver(current_car_id, FAST, self.current_step, is_human))
                 else:
                     self.road.set(lane, 0, Driver(current_car_id, SLOW, self.current_step, is_human))
+                current_car_id += 1
+
+        for lane in range(self.road.num_sd_lanes):
+            r = random.random()
+            #Can adjust car probability in order to have a higher chance of generating a car each time
+            if r < SD_CAR_PROBABILITY:
+                r = random.random()
+
+                is_human = False  #   only autonomous cars are in the sd lanes
+                
+                # self driving cars are all fast
+                self.road.set(lane+self.road.num_def_lanes-1, 0, Driver(current_car_id, FAST, self.current_step, is_human))
+
                 current_car_id += 1
 
         return current_car_id
@@ -296,13 +315,13 @@ class Simulation:
         x_values = []
         for i in range(NUM_BARS):
             x_values.append(min_speed + i*diffs)
-        plt.bar(x_values, y_values, width = diffs, align = 'edge')
-        plt.show()
+        #plt.bar(x_values, y_values, width = diffs, align = 'edge')
+        #plt.show()
 
 #Test function
 def main():
     sim = Simulation(NUM_TIME_STEPS)
     sim.run()
-    sim.plot_avg_speed()
+    #sim.plot_avg_speed()
 
 main()
