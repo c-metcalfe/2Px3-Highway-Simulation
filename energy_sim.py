@@ -30,7 +30,7 @@ SLOW = 4
 #Highway options
 HIGHWAY_LENGTH = 110
 NUM_DEF_LANES = 3    # number of default lanes
-NUM_SD_LANES = 1     # number of self-driving lanes
+NUM_SD_LANES = 1    # number of self-driving lanes
 
 #Follow distance for normal cars and for self driving cars
 HUMAN_SAFE_FOLLOW = 4
@@ -48,14 +48,22 @@ LEFT_LANE_CHANGE_PROBABILITY = 0.5 #Probability that a car that wants to perform
 #Car generation options
 def_car_prob = 0.1
 sd_car_prob = 0.1
+on_ramp_car_prob = 0.8
+on_ramp_sd_proportion = 0.25
+
 DEF_CAR_PROBABILITY = 0.25
 SD_CAR_PROBABILITY = 0.25
 FAST_PROBABILITY = 0.5
 IS_HUMAN_PROBABILITY = 0.5
 
+
+
 #Simulation options
+
+HAS_ON_RAMP = True
+
 NUM_TIME_STEPS = 10000
-PRINT_ROAD = False
+PRINT_ROAD = True
 NUM_BARS = 15 #Number of bars in the output bar graph
 
 #Class for each car
@@ -143,7 +151,7 @@ class Highway:
     #Returns true if it is safe to switch to left lane (spot adjacent to the car's current position in the left lane is free, and so are the next 2 spaces)
     #Returns false otherwise
     def safe_left_lane_change(self, lane, i):
-        if lane == 0:
+        if lane == 0 or (lane==1 and HAS_ON_RAMP and i<(HIGHWAY_LENGTH/4)):  #
             return False
         safe_lane_change = True
         if self.road[lane - 1][i] != EMPTY:
@@ -159,12 +167,16 @@ class Highway:
     #Prints the current state of the highway- good to see the visual representation and for debugging
     def print(self):
         s = "\n\n"
-        for k in range(self.num_def_lanes):
+        for k in range(self.num_def_lanes):  ## TODO fix print
             for i in range(self.length):
                 if self.road[k][i] == EMPTY:
                     s += "_"
                 else:
-                    s += "C"
+                    driver = self.get(k,i)
+                    if driver.is_human:
+                        s += "C"
+                    else:
+                        s += "S"
             s += "\n"
         for k in range(self.num_sd_lanes):
             for i in range(self.length):
@@ -231,6 +243,10 @@ class Simulation:
             elif self.road.safe_left_lane_change(lane, i):
                 driver.desire = LANE_CHANGE_LEFT
 
+        if (not driver.is_human) and lane < NUM_DEF_LANES: # if sd outside sd only section, try to go left
+            if self.road.safe_right_lane_change(lane, i):
+                driver.desire = LANE_CHANGE_RIGHT
+
         #Performs lane change if necessary then calls cruise method
         if driver.desire == LANE_CHANGE_RIGHT:
             self.road.set(lane + 1, i, driver)
@@ -270,35 +286,45 @@ class Simulation:
     def gen_new_drivers(self, num_cars):
         global def_car_prob
         global sd_car_prob
+        global on_ramp_car_prob
 
-        is_human = True
+        
         current_car_id = num_cars
         for lane in range(self.road.num_def_lanes):
             r = random.random()
+
+            if lane == 0 and HAS_ON_RAMP:
+                index = round(HIGHWAY_LENGTH / 4)
+            else:
+                index = 0
+
             #Can adjust car probability in order to have a higher chance of generating a car each time
-            if r < def_car_prob:
+            if (r < def_car_prob or (lane==0 and HAS_ON_RAMP and r<on_ramp_car_prob)):
                 r = random.random()
 
-                is_human = True  #  assume only human driven cars are in the normal lanes
-                
+                if(lane==0 and HAS_ON_RAMP and r < on_ramp_sd_proportion):    ##   spawn some sd cars on on ramp
+                    is_human = False
+                else:
+                    is_human = True  #  assume only human driven cars are in the normal lanes, excluding on ramp
+                r = random.random()
                 
                 #Can adjust fast probability in order to have a higher chance of generating a fast or slow car each time
                 if r < sd_car_prob:
-                    self.road.set(lane, 0, Driver(current_car_id, FAST, self.current_step, is_human))
+                    self.road.set(lane, index, Driver(current_car_id, FAST, self.current_step, is_human)) 
                 else:
-                    self.road.set(lane, 0, Driver(current_car_id, SLOW, self.current_step, is_human))
+                    self.road.set(lane, index, Driver(current_car_id, SLOW, self.current_step, is_human))
                 current_car_id += 1
 
         for lane in range(self.road.num_sd_lanes):
             r = random.random()
             #Can adjust car probability in order to have a higher chance of generating a car each time
-            if r < SD_CAR_PROBABILITY:
+            if r < sd_car_prob:
                 r = random.random()
 
                 is_human = False  #   only autonomous cars are in the sd lanes
                 
                 # self driving cars are all fast
-                self.road.set(lane+self.road.num_def_lanes-1, 0, Driver(current_car_id, FAST, self.current_step, is_human))
+                self.road.set(lane+self.road.num_def_lanes, 0, Driver(current_car_id, FAST, self.current_step, is_human))
 
                 current_car_id += 1
 
@@ -349,9 +375,9 @@ class Simulation:
 def main():
     global def_car_prob
     global sd_car_prob
-    for car_prob in range(5,100,5):
-        def_car_prob=car_prob/100
-        sd_car_prob=car_prob/100
+    for car_prob in range(5,10,5):
+        def_car_prob=0.8#car_prob/100
+        sd_car_prob=0.8#car_prob/100
         sim = Simulation(NUM_TIME_STEPS)
         sim.run()
         print(car_prob,"\t,",sim.average_energy_used())
